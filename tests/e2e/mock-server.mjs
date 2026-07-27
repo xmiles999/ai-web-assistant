@@ -34,8 +34,13 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify({ data: [{ id: 'e2e-model' }] }));
     return;
   }
-  if (request.url === '/fixture.html') {
-    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  if (request.url === '/fixture.html' || request.url === '/fixture-csp.html') {
+    const headers = { 'content-type': 'text/html; charset=utf-8' };
+    if (request.url === '/fixture-csp.html') {
+      headers['content-security-policy'] =
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'none'";
+    }
+    response.writeHead(200, headers);
     response.end(fixture);
     return;
   }

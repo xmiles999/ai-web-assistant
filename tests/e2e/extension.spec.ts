@@ -83,6 +83,19 @@ test.describe('extension fixture', () => {
       .toBe('inline');
   });
 
+  test('keeps the selection toolbar styled when the page blocks inline styles', async ({
+    page,
+  }) => {
+    await page.goto('/fixture-csp.html');
+    await page.addScriptTag({ path: 'dist/content-script.js' });
+    await page.locator('#text').selectText();
+    const toolbar = page.locator('[data-ai-web-assistant="root"]').locator('.toolbar');
+    await expect(toolbar).toBeVisible();
+    await expect(toolbar).toHaveCSS('display', 'flex');
+    await expect(toolbar).toHaveCSS('position', 'fixed');
+    await expect(toolbar).toHaveCSS('width', '302px');
+  });
+
   test('runs the full inline stream when the browser exposes extension workers', async ({
     context,
     page,
