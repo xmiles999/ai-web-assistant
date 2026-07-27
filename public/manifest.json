@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "AI 网页助手",
+  "short_name": "AI 助手",
+  "description": "选中文字后，使用自己配置的 OpenAI 兼容接口完成翻译、总结、解释与问答。",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "contextMenus", "scripting", "sidePanel", "storage"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "AI 网页助手",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "options_page": "options.html",
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "commands": {
+    "open-side-panel": {
+      "suggested_key": {
+        "default": "Alt+Shift+A"
+      },
+      "description": "打开 AI 网页助手"
+    }
+  }
+}
