@@ -1,8 +1,17 @@
 # AI 网页助手
 
+> Privacy-first Chrome extension for selected-text AI actions with user-provided OpenAI-compatible APIs.
+
 AI 网页助手是一个 Manifest V3 Chrome 扩展：安装时请求普通 HTTP/HTTPS 网站权限，选择网页文字后自动显示工具栏，并通过自己配置的 OpenAI Chat Completions 兼容接口处理内容。扩展安装、更新或新增站点权限后，会尝试对已打开的普通网页补注入 Content Script，无需依赖下次导航。
 
-当前版本 `0.2.0` 是本地优先的开发版本：工具栏操作默认在选区附近显示流式结果弹窗，右键菜单和扩展入口继续使用 Side Panel。项目支持 OpenAI/Azure Provider 档案、自定义 Prompt、可选本地历史和口令加密的持久 API Key。未实现账号、云同步、官网、Agent 和自动发布。
+当前版本 `0.2.1` 是本地优先的开源发布基线：工具栏操作默认在选区附近显示流式结果弹窗，右键菜单和扩展入口继续使用 Side Panel。项目支持 OpenAI/Azure Provider 档案、自定义 Prompt、可选本地历史和口令加密的持久 API Key。未实现账号、云同步、官网、Agent 和自动发布。
+
+## 兼容性与边界
+
+- Chrome 116 或更高版本。
+- 支持普通 HTTP/HTTPS 网页；Chrome 内部页面、Chrome 网上应用店和受限 PDF 页面不能注入。
+- 需要用户自行配置 AI 服务和 API Key；扩展没有自有中转服务。
+- 当前尚未发布 Chrome Web Store，详见 [发布记录](CHANGELOG.md)。
 
 ## 开发
 
@@ -54,6 +63,14 @@ API Key 默认只存当前浏览器会话。如果选择持久保存，使用用
 - [技术开发说明](docs/TECHNICAL_DEVELOPMENT.md)
 - [安全说明](docs/SECURITY.md)
 - [隐私说明](docs/PRIVACY.md)
+- [变更记录与发布说明](CHANGELOG.md)
+- [贡献指南](CONTRIBUTING.md)
+
+## 开源协作
+
+欢迎提交 Issue 和 Pull Request。请先阅读 [贡献指南](CONTRIBUTING.md)；安全漏洞请勿公开创建 Issue，应通过 GitHub Private Security Advisory 报告，流程见 [安全说明](docs/SECURITY.md)。提交不得包含 API Key、Cookie、网页私密内容或其他秘密。
+
+本项目采用 [MIT License](LICENSE)。贡献者确认其提交有权在 MIT License 下分发。
 
 ## SEO 结论
 
@@ -61,4 +78,4 @@ API Key 默认只存当前浏览器会话。如果选择持久保存，使用用
 
 ## 发布状态
 
-当前为开发构建，源码仓库已建立，但未发布 Chrome Web Store、未部署任何服务。发布前应由维护者在桌面 Chrome 验证全站权限提示、选区弹窗和 Side Panel，并审阅隐私文案、依赖许可证和打包制品哈希。
+当前开源版本为 `v0.2.1`；尚未发布 Chrome Web Store、未部署任何服务。发布前应由维护者在桌面 Chrome 验证全站权限提示、选区弹窗和 Side Panel，并审阅隐私文案、依赖许可证和打包制品哈希。

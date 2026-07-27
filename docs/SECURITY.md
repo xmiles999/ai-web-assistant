@@ -4,6 +4,10 @@
 
 默认 API Key 仅存在 `chrome.storage.session`。持久模式使用随机 salt、随机 IV、PBKDF2-SHA-256 和 AES-GCM；用户口令不持久化。普通 Chrome 扩展不能承诺操作系统级安全存储，已被控制的浏览器配置目录仍可被攻击者读取。
 
+## 漏洞报告
+
+请通过仓库的 GitHub Private Security Advisory 报告安全漏洞，不要使用公开 Issue。报告请包含受影响版本、最小复现步骤、影响范围和可选修复建议，但不要包含 API Key、Cookie 或真实网页私密数据。维护者会在修复后通过发布记录说明影响和升级方式。
+
 ## 信任边界
 
 Content Script 会静态注入普通 HTTP/HTTPS 页面，但只能发送用户主动触发的选区结构化消息。Service Worker、Options 和 Side Panel 是扩展可信上下文。AI 请求、密钥读取和历史写入不在 Content Script 执行。
