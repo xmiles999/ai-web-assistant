@@ -6,7 +6,7 @@
 
 - `src/background/service-worker.ts`：安装初始化、右键菜单、消息路由、任务校验、Side Panel 和 AI 流。初始化使用 single-flight，菜单重建通过 Promise 队列串行执行，避免安装事件与 Service Worker 启动同时触发时产生重复 ID 或父菜单缺失。
 - `src/background/content-injection.ts`：在安装、更新、新增站点权限和标签页重新激活时，对已打开页面执行幂等 Content Script 补注入。
-- `src/content/content-script.tsx`：选区读取、Shadow DOM 工具栏和内联流式结果弹窗，不接触密钥。
+- `src/content/content-script.tsx`：选区读取、Shadow DOM 工具栏和内联流式结果弹窗，不接触密钥。扩展 CSS 通过 Shadow Root 的构造样式表与 CSSOM 静态规则双路安装，严格 CSP 下仍能保留工具栏的关键布局。Content Script 启动入口位于样式常量初始化之后，防止 IIFE 构建产物在样式赋值前提前创建工具栏。
 - `src/providers/`：Provider URL 校验、SSE 解析、OpenAI/Azure 请求适配。
 - `src/security/crypto.ts`：PBKDF2-SHA-256 与 AES-GCM。
 - `src/storage/`：Chrome Storage 和 IndexedDB 历史。
@@ -26,7 +26,7 @@ Vite 主配置构建 Popup、Options、Side Panel 和 module Service Worker；�
 
 ## 测试映射
 
-Vitest 覆盖 Prompt 插值、URL 校验、加密解密、SSE 分块、并发菜单重建和旧标签页补注入。Playwright 通过本地 fixture 实际执行生产 Content Script，并验证工具栏、内联弹窗和流式文本；运行环境能够暴露扩展 Service Worker 时，再执行本地 Mock SSE 完整链路。无头 Chromium 不支持该能力时测试会明确跳过，不会伪报通过。真实付费 API 不在自动化测试中使用。
+Vitest 覆盖 Prompt 插值、URL 校验、加密解密、SSE 分块、并发菜单重建和旧标签页补注入。Playwright 通过本地 fixture 实际执行生产 Content Script，并验证工具栏、内联弹窗、流式文本和严格 `style-src` CSP 下的样式隔离；运行环境能够暴露扩展 Service Worker 时，再执行本地 Mock SSE 完整链路。无头 Chromium 不支持该能力时测试会明确跳过，不会伪报通过。真实付费 API 不在自动化测试中使用。
 
 ## 已知限制
 
