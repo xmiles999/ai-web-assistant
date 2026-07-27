@@ -6,7 +6,9 @@
 
 ## 信任边界
 
-Content Script 运行在网页相关上下文，只能发送选区结构化消息。Service Worker、Options 和 Side Panel 是扩展可信上下文。AI 请求、密钥读取和历史写入不在 Content Script 执行。
+Content Script 会静态注入普通 HTTP/HTTPS 页面，但只能发送用户主动触发的选区结构化消息。Service Worker、Options 和 Side Panel 是扩展可信上下文。AI 请求、密钥读取和历史写入不在 Content Script 执行。
+
+`scripting` 权限仅用于向安装、更新或授权前已经打开的 HTTP/HTTPS 标签页补注入同一个 Content Script。注入代码使用页面内幂等标记，不重复注册监听器；Chrome 内部页、商店页和用户禁止访问的页面会被跳过。
 
 ## Prompt 注入
 
@@ -14,7 +16,7 @@ Content Script 运行在网页相关上下文，只能发送选区结构化消�
 
 ## 输出
 
-Markdown 先由 marked 解析，再通过 DOMPurify 清洗；禁止原始 HTML、脚本、事件属性和危险 URI。
+网页内联弹窗使用 `textContent` 渲染纯文本结果，不解释模型返回的 HTML。Side Panel 的 Markdown 先由 marked 解析，再通过 DOMPurify 清洗；禁止原始 HTML、脚本、事件属性和危险 URI。
 
 ## 自定义接口
 

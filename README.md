@@ -1,8 +1,8 @@
 # AI 网页助手
 
-AI 网页助手是一个 Manifest V3 Chrome 扩展：选择网页文字后，通过右键菜单或用户授权的网站悬浮工具栏调用自己配置的 OpenAI Chat Completions 兼容接口。
+AI 网页助手是一个 Manifest V3 Chrome 扩展：安装时请求普通 HTTP/HTTPS 网站权限，选择网页文字后自动显示工具栏，并通过自己配置的 OpenAI Chat Completions 兼容接口处理内容。扩展安装、更新或新增站点权限后，会尝试对已打开的普通网页补注入 Content Script，无需依赖下次导航。
 
-当前版本 `0.1.0` 是本地优先的首期实现：支持选区、动态网站权限、Side Panel 流式输出、OpenAI/Azure Provider 档案、自定义 Prompt、可选本地历史和口令加密的持久 API Key。未实现账号、云同步、官网、Agent 和自动发布。
+当前版本 `0.2.0` 是本地优先的开发版本：工具栏操作默认在选区附近显示流式结果弹窗，右键菜单和扩展入口继续使用 Side Panel。项目支持 OpenAI/Azure Provider 档案、自定义 Prompt、可选本地历史和口令加密的持久 API Key。未实现账号、云同步、官网、Agent 和自动发布。
 
 ## 开发
 
@@ -61,4 +61,4 @@ API Key 默认只存当前浏览器会话。如果选择持久保存，使用用
 
 ## 发布状态
 
-当前为本地开发构建，未提交 Git、未发布 Chrome Web Store、未部署任何服务。发布前应由维护者审阅权限、隐私文案、依赖许可证和打包制品哈希。
+当前为开发构建，源码仓库已建立，但未发布 Chrome Web Store、未部署任何服务。发布前应由维护者在桌面 Chrome 验证全站权限提示、选区弹窗和 Side Panel，并审阅隐私文案、依赖许可证和打包制品哈希。
