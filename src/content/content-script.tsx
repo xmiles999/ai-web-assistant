@@ -8,24 +8,21 @@ declare global {
   }
 }
 
-if (!window.__AI_WEB_ASSISTANT_LOADED__) {
-  window.__AI_WEB_ASSISTANT_LOADED__ = true;
-  installSelectionToolbar();
-}
-
 function installSelectionToolbar(): void {
   const host = document.createElement('div');
   host.dataset.aiWebAssistant = 'root';
+  host.style.setProperty('all', 'initial', 'important');
   const shadow = host.attachShadow({ mode: 'open' });
-  const style = document.createElement('style');
-  style.textContent = TOOLBAR_CSS;
+  const stylesheet = new CSSStyleSheet();
+  stylesheet.replaceSync(TOOLBAR_CSS);
+  shadow.adoptedStyleSheets = [stylesheet];
   const toolbar = document.createElement('div');
   toolbar.className = 'toolbar';
   toolbar.setAttribute('role', 'toolbar');
   toolbar.setAttribute('aria-label', 'AI 网页助手');
-  toolbar.hidden = true;
+  setHidden(toolbar, true, 'flex');
   const panel = createResultPanel();
-  shadow.append(style, toolbar, panel.root);
+  shadow.append(toolbar, panel.root);
   document.documentElement.append(host);
 
   const actions: Array<[ActionId, string]> = [
@@ -44,6 +41,7 @@ function installSelectionToolbar(): void {
     button.setAttribute('aria-label', label);
     toolbar.append(button);
   }
+  installCspResilientStyles(shadow);
 
   let current: { context: SelectionContext; rect: DOMRect } | undefined;
   let scheduled = 0;
@@ -53,12 +51,12 @@ function installSelectionToolbar(): void {
     scheduled = requestAnimationFrame(() => {
       const selection = readSelection();
       if (!selection || shadow.activeElement || !panel.root.hidden) {
-        if (!shadow.activeElement && panel.root.hidden) toolbar.hidden = true;
+        if (!shadow.activeElement && panel.root.hidden) setHidden(toolbar, true, 'flex');
         return;
       }
       current = selection;
       position(toolbar, selection.rect);
-      toolbar.hidden = false;
+      setHidden(toolbar, false, 'flex');
     });
   };
 
@@ -67,27 +65,27 @@ function installSelectionToolbar(): void {
   document.addEventListener('keyup', (event) => {
     if (event.key === 'Escape') {
       if (!panel.root.hidden) panel.close();
-      else toolbar.hidden = true;
+      else setHidden(toolbar, true, 'flex');
     } else refresh();
   });
   window.addEventListener(
     'scroll',
     () => {
-      toolbar.hidden = true;
+      setHidden(toolbar, true, 'flex');
     },
     { passive: true, capture: true },
   );
   window.addEventListener(
     'resize',
     () => {
-      toolbar.hidden = true;
+      setHidden(toolbar, true, 'flex');
     },
     { passive: true },
   );
   document.addEventListener(
     'pointerdown',
     (event) => {
-      if (!event.composedPath().includes(host)) toolbar.hidden = true;
+      if (!event.composedPath().includes(host)) setHidden(toolbar, true, 'flex');
     },
     { capture: true },
   );
@@ -113,7 +111,7 @@ function installSelectionToolbar(): void {
     })
       .then((response) => {
         if (!response.ok || !response.data) throw new Error(response.error ?? '操作失败');
-        toolbar.hidden = true;
+        setHidden(toolbar, true, 'flex');
         panel.open(response.data, current!.rect);
       })
       .catch((error: unknown) => {
@@ -130,7 +128,7 @@ function installSelectionToolbar(): void {
 function createResultPanel() {
   const root = document.createElement('section');
   root.className = 'result-panel';
-  root.hidden = true;
+  setHidden(root, true, 'flex');
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-label', 'AI 结果');
 
@@ -154,7 +152,7 @@ function createResultPanel() {
 
   const questionArea = document.createElement('div');
   questionArea.className = 'question-area';
-  questionArea.hidden = true;
+  setHidden(questionArea, true, 'flex');
   const question = document.createElement('textarea');
   question.placeholder = '输入你想了解的问题';
   question.rows = 3;
@@ -201,7 +199,7 @@ function createResultPanel() {
       activePort?.postMessage({ type: 'CANCEL_REQUEST', requestId: activeTask.requestId });
     activePort?.disconnect();
     activePort = undefined;
-    stop.hidden = true;
+    setHidden(stop, true);
     status.textContent = '已停止';
   };
 
@@ -213,19 +211,19 @@ function createResultPanel() {
       if (message.type === 'STREAM_START') {
         meta.textContent = `${message.providerName} · ${message.model}`;
         status.textContent = '正在生成…';
-        stop.hidden = false;
+        setHidden(stop, false);
       } else if (message.type === 'STREAM_CHUNK') {
         result.textContent += message.text;
         result.scrollTop = result.scrollHeight;
       } else if (message.type === 'STREAM_COMPLETE') {
         status.textContent = '生成完成';
-        stop.hidden = true;
+        setHidden(stop, true);
         activePort?.disconnect();
         activePort = undefined;
       } else if (message.type === 'STREAM_ERROR') {
         status.textContent = message.error;
-        stop.hidden = true;
-        settings.hidden = false;
+        setHidden(stop, true);
+        setHidden(settings, false);
         activePort?.disconnect();
         activePort = undefined;
       }
@@ -242,10 +240,10 @@ function createResultPanel() {
     result.textContent = '';
     status.textContent = '';
     question.value = task.userInput ?? '';
-    questionArea.hidden = task.actionId !== 'ask' || Boolean(task.userInput?.trim());
-    stop.hidden = true;
-    settings.hidden = true;
-    root.hidden = false;
+    setHidden(questionArea, task.actionId !== 'ask' || Boolean(task.userInput?.trim()), 'flex');
+    setHidden(stop, true);
+    setHidden(settings, true);
+    setHidden(root, false, 'flex');
     positionPanel(root, rect);
     if (!questionArea.hidden) question.focus();
     else startRequest(task);
@@ -253,7 +251,7 @@ function createResultPanel() {
 
   ask.addEventListener('click', () => {
     if (!activeTask || !question.value.trim()) return;
-    questionArea.hidden = true;
+    setHidden(questionArea, true, 'flex');
     startRequest({
       ...activeTask,
       requestId: crypto.randomUUID(),
@@ -280,7 +278,7 @@ function createResultPanel() {
 
   function closePanel() {
     stopRequest();
-    root.hidden = true;
+    setHidden(root, true, 'flex');
   }
 
   return {
@@ -371,15 +369,84 @@ function showStatus(toolbar: HTMLDivElement, message: string): void {
   setTimeout(() => {
     toolbar.classList.remove('message');
     delete toolbar.dataset.status;
-    toolbar.hidden = true;
+    setHidden(toolbar, true, 'flex');
   }, 1400);
 }
+
+function setHidden(element: HTMLElement, hidden: boolean, visibleDisplay = ''): void {
+  element.hidden = hidden;
+  if (hidden) element.style.setProperty('display', 'none', 'important');
+  else if (visibleDisplay) element.style.setProperty('display', visibleDisplay);
+  else element.style.removeProperty('display');
+}
+
+function installCspResilientStyles(shadow: ShadowRoot): void {
+  for (const [selector, declarations] of CSP_FALLBACK_STYLES) {
+    for (const element of shadow.querySelectorAll<HTMLElement>(selector)) {
+      element.style.cssText += `;${declarations}`;
+    }
+  }
+}
+
+const CSP_FALLBACK_STYLES: ReadonlyArray<readonly [selector: string, declarations: string]> = [
+  [
+    '.toolbar, .result-panel',
+    'position:fixed;z-index:2147483647;box-sizing:border-box;font:13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+  ],
+  [
+    '.toolbar',
+    'width:302px;min-height:36px;align-items:center;gap:2px;padding:4px;color:#f7f4ed;background:#173f35;border:1px solid rgba(255,255,255,.18);border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.22)',
+  ],
+  [
+    'button',
+    'appearance:none;box-sizing:border-box;min-height:28px;padding:5px 8px;border:0;border-radius:4px;color:inherit;background:transparent;font:inherit;cursor:pointer;white-space:nowrap',
+  ],
+  [
+    '.result-panel',
+    'max-height:min(70vh,560px);overflow:auto;flex-direction:column;color:#18342e;background:#fbf8f1;border:1px solid #c9c5bb;border-radius:8px;box-shadow:0 14px 36px rgba(0,0,0,.25)',
+  ],
+  [
+    '.result-panel header',
+    'display:flex;min-height:48px;align-items:center;gap:8px;border-bottom:1px solid #d8d2c7;padding:0 12px',
+  ],
+  ['.result-panel header strong', 'font-size:15px'],
+  [
+    '.panel-meta',
+    'flex:1;overflow:hidden;color:#66746e;font-size:11px;text-overflow:ellipsis;white-space:nowrap',
+  ],
+  ['.icon-button', 'padding:3px 8px;font-size:20px;line-height:1'],
+  [
+    '.panel-selection',
+    'margin:10px 12px 0;border-bottom:1px solid #e2ddd2;color:#66746e;font-size:11px',
+  ],
+  [
+    '.panel-selection pre',
+    'max-height:90px;overflow:auto;margin:8px 0 10px;white-space:pre-wrap;color:#41534c;font:11px/1.5 ui-monospace,monospace',
+  ],
+  ['.question-area', 'flex-direction:column;gap:8px;padding:12px'],
+  [
+    'textarea',
+    'width:100%;box-sizing:border-box;resize:vertical;border:1px solid #bfc5c0;border-radius:5px;padding:8px;color:#18342e;background:#fffdf8;font:inherit',
+  ],
+  ['.primary-button', 'align-self:flex-end;color:#fff;background:#173f35'],
+  [
+    '.result-text',
+    'min-height:80px;max-height:340px;overflow:auto;margin:0;padding:14px 12px;white-space:pre-wrap;overflow-wrap:anywhere;color:#233e35;font:13px/1.65 system-ui,sans-serif',
+  ],
+  ['.panel-status', 'min-height:20px;padding:0 12px 8px;color:#66746e;font-size:11px'],
+  [
+    '.result-panel footer',
+    'display:flex;justify-content:flex-end;gap:5px;border-top:1px solid #d8d2c7;padding:8px 10px',
+  ],
+  ['.plain-button, .danger-button', 'color:#18342e'],
+  ['.danger-button', 'color:#9a3029'],
+];
 
 const TOOLBAR_CSS = `
   :host { all: initial; }
   .toolbar, .result-panel { position: fixed; z-index: 2147483647; box-sizing: border-box; font: 13px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   .toolbar { display: flex; width: 302px; min-height: 36px; align-items: center; gap: 2px; padding: 4px; color: #f7f4ed; background: #173f35; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; box-shadow: 0 8px 24px rgba(0,0,0,.22); }
-  .toolbar[hidden], .result-panel[hidden] { display: none; }
+  [hidden] { display: none !important; }
   .toolbar.message::before { content: attr(data-status); padding: 5px 8px; }
   .toolbar.message button { display: none; }
   button { all: unset; box-sizing: border-box; min-height: 28px; padding: 5px 8px; border-radius: 4px; color: inherit; cursor: pointer; white-space: nowrap; }
@@ -411,3 +478,8 @@ const TOOLBAR_CSS = `
   }
   @media (prefers-reduced-motion: no-preference) { .toolbar, .result-panel { animation: appear 100ms ease-out; } @keyframes appear { from { opacity: 0; transform: translateY(3px); } } }
 `;
+
+if (!window.__AI_WEB_ASSISTANT_LOADED__) {
+  window.__AI_WEB_ASSISTANT_LOADED__ = true;
+  installSelectionToolbar();
+}
