@@ -27,7 +27,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   targetLanguage: '简体中文',
   maxSelectionCharacters: 12_000,
   theme: 'system',
-  sitePatterns: [],
 };
 
 export const BUILT_IN_PROMPTS: PromptAction[] = [

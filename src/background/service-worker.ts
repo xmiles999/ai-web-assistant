@@ -1,10 +1,5 @@
 import { rebuildContextMenus, MENU_PREFIX } from './context-menus';
-import {
-  disableSite,
-  enableSite,
-  hasSitePermission,
-  reconcileSiteRegistrations,
-} from './site-permissions';
+import { injectContentScript, injectIntoOpenTabs } from './content-injection';
 import { renderPrompt } from '../prompts/template';
 import { ProviderError, streamChat } from '../providers/openai';
 import { saveConversation, removeExpiredConversations } from '../storage/history';
@@ -25,22 +20,45 @@ import type {
 } from '../types/messages';
 
 const controllers = new Map<string, AbortController>();
+let preparation: Promise<void> | undefined;
 
-async function prepare(): Promise<void> {
+function prepare(): Promise<void> {
+  preparation ??= performPrepare().finally(() => {
+    preparation = undefined;
+  });
+  return preparation;
+}
+
+async function performPrepare(): Promise<void> {
   await chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
   await initializeStorage();
   await rebuildContextMenus();
-  await reconcileSiteRegistrations();
+  await injectIntoOpenTabs();
   const settings = await getSettings();
   if (settings.historyEnabled) await removeExpiredConversations(settings.retentionDays);
 }
 
-chrome.runtime.onInstalled.addListener(() => void prepare());
-chrome.runtime.onStartup.addListener(() => void prepare());
-void prepare();
+function schedulePrepare(): void {
+  void prepare().catch((error: unknown) => {
+    console.error('AI 网页助手初始化失败', error);
+  });
+}
+
+function scheduleOpenTabInjection(): void {
+  void injectIntoOpenTabs().catch((error: unknown) => {
+    console.error('AI 网页助手补注入失败', error);
+  });
+}
+
+chrome.runtime.onInstalled.addListener(schedulePrepare);
+chrome.runtime.onStartup.addListener(schedulePrepare);
+chrome.permissions.onAdded.addListener(scheduleOpenTabInjection);
+chrome.tabs.onActivated.addListener(({ tabId }) => void injectContentScript(tabId));
+schedulePrepare();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (!String(info.menuItemId).startsWith(MENU_PREFIX) || !info.selectionText || !tab?.id) return;
+  const tabId = tab?.id;
+  if (!String(info.menuItemId).startsWith(MENU_PREFIX) || !info.selectionText || !tabId) return;
   const actionId = String(info.menuItemId).slice(MENU_PREFIX.length);
   const selection: SelectionContext = {
     selectedText: info.selectionText,
@@ -48,7 +66,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     pageUrl: info.pageUrl ?? tab.url ?? '',
     timestamp: new Date().toISOString(),
   };
-  void queueTask(actionId, selection, tab.id);
+  void createTask(actionId, selection).then((task) => queueTask(task, tabId));
 });
 
 chrome.commands.onCommand.addListener((command, tab) => {
@@ -70,10 +88,12 @@ chrome.runtime.onMessage.addListener(
 async function handleRuntimeMessage(message: RuntimeRequest, sender: chrome.runtime.MessageSender) {
   switch (message.type) {
     case 'RUN_ACTION': {
+      const task = await createTask(message.actionId, message.selection, message.userInput);
+      if (message.presentation === 'inline') return task;
       const tabId = sender.tab?.id;
       if (!tabId) throw new Error('无法确定当前标签页');
-      await queueTask(message.actionId, message.selection, tabId, message.userInput);
-      return undefined;
+      await queueTask(task, tabId);
+      return task;
     }
     case 'GET_PENDING_TASK': {
       const result = await chrome.storage.session.get(KEYS.pendingTask);
@@ -86,10 +106,6 @@ async function handleRuntimeMessage(message: RuntimeRequest, sender: chrome.runt
         await chrome.storage.session.remove(KEYS.pendingTask);
       return undefined;
     }
-    case 'GET_TAB_STATUS':
-      return { enabled: message.url ? await hasSitePermission(message.url) : false };
-    case 'SET_SITE_PERMISSION':
-      return message.enabled ? enableSite(message.tabId, message.url) : disableSite(message.url);
     case 'OPEN_SIDE_PANEL':
       await chrome.sidePanel.open({ tabId: message.tabId });
       return undefined;
@@ -122,39 +138,45 @@ async function handleRuntimeMessage(message: RuntimeRequest, sender: chrome.runt
   }
 }
 
-async function queueTask(
+async function createTask(
   actionId: string,
   selection: SelectionContext,
-  tabId: number,
   userInput?: string,
-): Promise<void> {
+): Promise<PendingTask> {
   const settings = await getSettings();
   const length = [...selection.selectedText].length;
   if (length === 0) throw new Error('没有可处理的选中文字');
   if (length > settings.maxSelectionCharacters)
     throw new Error(`选中文字超过 ${settings.maxSelectionCharacters} 字符，请缩短后重试`);
-  const task: PendingTask = {
+  return {
     requestId: crypto.randomUUID(),
     actionId,
     selection,
     userInput,
     createdAt: new Date().toISOString(),
   };
+}
+
+async function queueTask(task: PendingTask, tabId: number): Promise<void> {
   await chrome.storage.session.set({ [KEYS.pendingTask]: task });
   await chrome.sidePanel.open({ tabId });
 }
 
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== 'ai-stream') return;
+  if (port.name !== 'ai-stream' && port.name !== 'ai-stream-inline') return;
+  const requestIds = new Set<string>();
   port.onMessage.addListener((message: StreamClientMessage) => {
     if (message.type === 'CANCEL_REQUEST') {
       controllers.get(message.requestId)?.abort();
       return;
     }
-    if (message.type === 'START_STREAM') void runStream(message.task, port);
+    if (message.type === 'START_STREAM') {
+      requestIds.add(message.task.requestId);
+      void runStream(message.task, port).finally(() => requestIds.delete(message.task.requestId));
+    }
   });
   port.onDisconnect.addListener(() => {
-    for (const controller of controllers.values()) controller.abort();
+    for (const requestId of requestIds) controllers.get(requestId)?.abort();
   });
 });
 

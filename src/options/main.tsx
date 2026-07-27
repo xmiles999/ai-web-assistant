@@ -16,7 +16,7 @@ import {
 import { decryptSecret, encryptSecret } from '../security/crypto';
 import { findUnknownVariables } from '../prompts/template';
 import { listModels } from '../providers/openai';
-import { originPattern, validateProvider } from '../providers/url';
+import { validateProvider } from '../providers/url';
 import type { ExtensionSettings, PromptAction, ProviderProfile } from '../types';
 import { sendRuntime } from '../messaging/client';
 import { applyTheme } from '../utils/theme';
@@ -105,13 +105,7 @@ function App() {
                 setStatus={setStatus}
               />
             )}
-            {section === 'sites' && (
-              <SitesSection
-                settings={settings}
-                onSettings={persistSettings}
-                setStatus={setStatus}
-              />
-            )}
+            {section === 'sites' && <SitesSection />}
             {section === 'about' && <AboutSection />}
             <div className="status" role="status">
               {status}
@@ -182,9 +176,6 @@ function ProvidersSection({
       return;
     }
     try {
-      const pattern = originPattern(editing.baseUrl);
-      const granted = await chrome.permissions.request({ origins: [pattern] });
-      if (!granted) throw new Error('必须授权访问该 API 域名才能发送请求');
       let profile = { ...editing, updatedAt: new Date().toISOString() };
       if (apiKey) {
         if (profile.secretStorage === 'encrypted') {
@@ -858,50 +849,17 @@ function PrivacySection({
   );
 }
 
-function SitesSection({
-  settings,
-  onSettings,
-  setStatus,
-}: {
-  settings: ExtensionSettings;
-  onSettings: (settings: ExtensionSettings) => Promise<void>;
-  setStatus: (status: string) => void;
-}) {
-  const revoke = async (pattern: string) => {
-    const response = await sendRuntime({
-      type: 'SET_SITE_PERMISSION',
-      tabId: 0,
-      url: pattern,
-      enabled: false,
-    });
-    if (!response.ok) {
-      setStatus(response.error ?? '撤销失败');
-      return;
-    }
-    await onSettings({
-      ...settings,
-      sitePatterns: settings.sitePatterns.filter((item) => item !== pattern),
-    });
-    setStatus('网站权限已撤销');
-  };
+function SitesSection() {
   return (
     <section className="section">
       <h1>网站权限</h1>
-      <p className="muted">只有下列网站会自动注入选区悬浮工具栏。右键菜单不依赖这些授权。</p>
-      {settings.sitePatterns.length ? (
-        <div className="list">
-          {settings.sitePatterns.map((pattern) => (
-            <div className="list-row" key={pattern}>
-              <code>{pattern}</code>
-              <button className="button danger" onClick={() => void revoke(pattern)}>
-                撤销
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="notice">尚未授权任何网站。请从扩展弹窗为当前网站启用。</div>
-      )}
+      <p className="muted">
+        扩展安装时请求 HTTP 和 HTTPS 网站访问权限，因此普通网页选中文字后默认显示工具栏。
+      </p>
+      <div className="notice">
+        Chrome 内部页、Chrome Web Store 和浏览器明确禁止注入的页面仍不支持。若需限制站点，请在
+        Chrome 的扩展详情页调整“网站访问权限”。
+      </div>
     </section>
   );
 }
@@ -910,7 +868,7 @@ function AboutSection() {
   return (
     <section className="section">
       <h1>关于</h1>
-      <p>AI 网页助手 0.1.0</p>
+      <p>AI 网页助手 0.2.0</p>
       <p className="muted">Manifest V3 · 数据隐私优先 · MIT License</p>
       <div className="notice">
         本扩展不会运营中转服务器。你选择的文本只会发送到当前配置的 AI 服务。普通 Chrome

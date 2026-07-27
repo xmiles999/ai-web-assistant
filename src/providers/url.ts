@@ -49,10 +49,3 @@ export function buildModelsEndpoint(profile: ProviderProfile): string | undefine
   if (profile.protocol === 'azure-openai') return undefined;
   return `${normalizeBaseUrl(profile.baseUrl)}/models`;
 }
-
-export function originPattern(rawUrl: string): string {
-  const url = new URL(rawUrl);
-  if (url.protocol !== 'http:' && url.protocol !== 'https:')
-    throw new Error('此页面不支持扩展注入');
-  return `${url.origin}/*`;
-}

@@ -41,7 +41,6 @@ export interface ExtensionSettings {
   targetLanguage: string;
   maxSelectionCharacters: number;
   theme: ThemeMode;
-  sitePatterns: string[];
 }
 
 export interface PromptAction {
