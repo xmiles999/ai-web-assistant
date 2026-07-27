@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('extension fixture', () => {
-  test('runs the built content script, shows the toolbar and sends a structured action', async ({
+  test('shows the all-site toolbar and renders streamed content in the inline panel', async ({
     page,
   }) => {
     await page.addInitScript(() => {
@@ -9,9 +9,56 @@ test.describe('extension fixture', () => {
       Object.defineProperty(window, 'chrome', {
         value: {
           runtime: {
-            sendMessage: (message: unknown) => {
+            sendMessage: (message: { type?: string; actionId?: string; selection?: unknown }) => {
               (window as typeof window & { __lastMessage?: unknown }).__lastMessage = message;
-              return Promise.resolve({ ok: true });
+              return Promise.resolve({
+                ok: true,
+                data: {
+                  requestId: 'e2e-inline',
+                  actionId: message.actionId,
+                  selection: message.selection,
+                  createdAt: new Date().toISOString(),
+                },
+              });
+            },
+            connect: () => {
+              const listeners: Array<(message: unknown) => void> = [];
+              return {
+                onMessage: {
+                  addListener: (listener: (message: unknown) => void) => listeners.push(listener),
+                },
+                postMessage: (message: { type?: string; task?: { requestId?: string } }) => {
+                  if (message.type !== 'START_STREAM') return;
+                  const requestId = message.task?.requestId ?? 'e2e-inline';
+                  setTimeout(
+                    () =>
+                      listeners.forEach((listener) =>
+                        listener({
+                          type: 'STREAM_START',
+                          requestId,
+                          providerName: 'Mock',
+                          model: 'test',
+                        }),
+                      ),
+                    10,
+                  );
+                  setTimeout(
+                    () =>
+                      listeners.forEach((listener) =>
+                        listener({ type: 'STREAM_CHUNK', requestId, text: '测试流式回答' }),
+                      ),
+                    20,
+                  );
+                  setTimeout(
+                    () =>
+                      listeners.forEach((listener) =>
+                        listener({ type: 'STREAM_COMPLETE', requestId }),
+                      ),
+                    30,
+                  );
+                },
+                disconnect: () => undefined,
+              };
             },
           },
         },
@@ -20,21 +67,23 @@ test.describe('extension fixture', () => {
     await page.goto('/fixture.html');
     await page.addScriptTag({ path: 'dist/content-script.js' });
     await page.locator('#text').selectText();
-    const toolbar = page.locator('[data-ai-web-assistant="toolbar"]');
-    await expect(toolbar.locator('button', { hasText: '总结' })).toBeVisible();
-    await toolbar.locator('button', { hasText: '总结' }).click();
+    const extension = page.locator('[data-ai-web-assistant="root"]');
+    await expect(extension.locator('button', { hasText: '总结' })).toBeVisible();
+    await extension.locator('button', { hasText: '总结' }).click();
+    await expect(extension.locator('.result-panel')).toBeVisible();
+    await expect(extension.locator('.result-text')).toContainText('测试流式回答');
     await expect
       .poll(() =>
         page.evaluate(
           () =>
-            (window as typeof window & { __lastMessage?: { actionId?: string } }).__lastMessage
-              ?.actionId,
+            (window as typeof window & { __lastMessage?: { presentation?: string } }).__lastMessage
+              ?.presentation,
         ),
       )
-      .toBe('summarize');
+      .toBe('inline');
   });
 
-  test('runs the full extension stream when the browser exposes extension workers', async ({
+  test('runs the full inline stream when the browser exposes extension workers', async ({
     context,
     page,
   }) => {
@@ -45,27 +94,8 @@ test.describe('extension fixture', () => {
     );
     if (!serviceWorker) return;
     const extensionId = new URL(serviceWorker.url()).hostname;
-    await page.goto('/fixture.html');
     const control = await context.newPage();
     await control.goto(`chrome-extension://${extensionId}/popup.html`);
-    await control.evaluate(() => {
-      const button = document.createElement('button');
-      button.id = 'e2e-grant';
-      button.addEventListener('click', () => {
-        void chrome.permissions
-          .request({ origins: ['http://127.0.0.1:4173/*'] })
-          .then((granted) => {
-            (window as typeof window & { __granted?: boolean }).__granted = granted;
-          });
-      });
-      document.body.append(button);
-    });
-    await control.locator('#e2e-grant').click();
-    await expect
-      .poll(() =>
-        control.evaluate(() => (window as typeof window & { __granted?: boolean }).__granted),
-      )
-      .toBe(true);
     await control.evaluate(async () => {
       const now = new Date().toISOString();
       const stored = await chrome.storage.local.get(['settings']);
@@ -91,27 +121,11 @@ test.describe('extension fixture', () => {
           },
         ],
       });
-      const tabs = await chrome.tabs.query({});
-      const fixture = tabs.find((tab) => tab.url?.startsWith('http://127.0.0.1:4173/fixture'));
-      if (!fixture?.id || !fixture.url) throw new Error('找不到测试标签页');
-      const response: unknown = await chrome.runtime.sendMessage({
-        type: 'SET_SITE_PERMISSION',
-        tabId: fixture.id,
-        url: fixture.url,
-        enabled: true,
-      });
-      if (!response || typeof response !== 'object' || !('ok' in response))
-        throw new Error('权限响应格式无效');
-      if (!response.ok)
-        throw new Error(
-          'error' in response && typeof response.error === 'string' ? response.error : '授权失败',
-        );
     });
-    const panel = await context.newPage();
-    await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await page.goto('/fixture.html');
     await page.locator('#text').selectText();
-    const toolbar = page.locator('[data-ai-web-assistant="toolbar"]');
-    await toolbar.locator('button', { hasText: '总结' }).click();
-    await expect(panel.locator('.markdown')).toContainText('测试流式回答');
+    const extension = page.locator('[data-ai-web-assistant="root"]');
+    await extension.locator('button', { hasText: '总结' }).click();
+    await expect(extension.locator('.result-text')).toContainText('测试流式回答');
   });
 });

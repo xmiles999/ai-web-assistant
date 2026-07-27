@@ -14,6 +14,8 @@ export default defineConfig({
         'src/security/**/*.ts',
         'src/providers/sse.ts',
         'src/providers/url.ts',
+        'src/background/content-injection.ts',
+        'src/background/context-menus.ts',
       ],
       thresholds: { lines: 80, functions: 75, statements: 80, branches: 50 },
     },
