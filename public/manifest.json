@@ -3,7 +3,7 @@
   "name": "AI 网页助手",
   "short_name": "AI 助手",
   "description": "选中文字后，使用自己配置的 OpenAI 兼容接口完成翻译、总结、解释与问答。",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "minimum_chrome_version": "116",
   "permissions": ["contextMenus", "scripting", "sidePanel", "storage"],
   "host_permissions": ["https://*/*", "http://*/*"],

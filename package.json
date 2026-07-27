@@ -1,6 +1,6 @@
 {
   "name": "ai-web-assistant",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "隐私优先、支持用户自备 OpenAI 兼容接口的 Chrome 网页助手。",
   "type": "module",
