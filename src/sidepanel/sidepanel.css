@@ -2,8 +2,8 @@
   display: flex;
   min-height: 100dvh;
   flex-direction: column;
-  color: #18342e;
-  background: #f7f3ea;
+  color: var(--text-primary);
+  background: var(--surface-page);
 }
 .panel-header {
   position: sticky;
@@ -14,9 +14,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid #d8d2c7;
+  border-bottom: 1px solid var(--border-default);
   padding: 0 14px;
-  background: #fbf8f1;
+  background: var(--surface-panel);
 }
 .panel-header nav {
   display: flex;
@@ -30,7 +30,7 @@
   background: transparent;
 }
 .panel-header nav button[aria-current='page'] {
-  border-bottom-color: #1f6755;
+  border-bottom-color: var(--action-primary);
 }
 .panel-main {
   flex: 1;
@@ -47,7 +47,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid #d8d2c7;
+  border-bottom: 1px solid var(--border-default);
   padding-bottom: 13px;
 }
 .task-heading h1 {
@@ -58,11 +58,11 @@
   max-height: 180px;
   overflow: auto;
   margin: 12px 0;
-  border-left: 3px solid #c99d51;
+  border-left: 3px solid var(--warning-border);
   padding: 10px 12px;
   white-space: pre-wrap;
-  color: #41534c;
-  background: #eee9df;
+  color: var(--text-secondary);
+  background: var(--surface-selection);
   font:
     12px/1.55 ui-monospace,
     monospace;
@@ -89,8 +89,8 @@
   overflow: auto;
   border-radius: 5px;
   padding: 11px;
-  background: #17231f;
-  color: #e9efe8;
+  background: var(--surface-code);
+  color: var(--text-on-code);
 }
 .markdown code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -98,10 +98,10 @@
 .markdown :not(pre) > code {
   padding: 1px 4px;
   border-radius: 3px;
-  background: #e4dfd5;
+  background: var(--surface-inline-code);
 }
 .markdown a {
-  color: #176854;
+  color: var(--success-text);
 }
 .panel-footer {
   position: fixed;
@@ -111,9 +111,9 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  border-top: 1px solid #d8d2c7;
+  border-top: 1px solid var(--border-default);
   padding: 10px 14px;
-  background: #fbf8f1;
+  background: var(--surface-panel);
 }
 .panel-footer .follow-up {
   min-width: 80px;
@@ -128,88 +128,18 @@
   margin-top: 16px;
 }
 .history-item {
-  border-top: 1px solid #d8d2c7;
+  border-top: 1px solid var(--border-default);
   padding: 15px 0;
 }
 .history-item time {
   font-size: 11px;
-  color: #66746e;
+  color: var(--text-muted);
 }
 .history-item p {
-  color: #50605a;
+  color: var(--text-secondary);
 }
 .history-answer {
   max-height: 150px;
   overflow: hidden;
   font-size: 12px;
-}
-@media (prefers-color-scheme: dark) {
-  .panel-shell,
-  .panel-header,
-  .panel-footer {
-    color: #e7eee9;
-    background: #14231f;
-  }
-  .panel-header,
-  .panel-footer,
-  .task-heading,
-  .history-item {
-    border-color: #344640;
-  }
-  .selection-preview {
-    color: #d3ddd7;
-    background: #1c3029;
-  }
-  .markdown :not(pre) > code {
-    background: #294139;
-  }
-  .markdown a {
-    color: #80cdb8;
-  }
-}
-:root[data-theme='dark'] .panel-shell,
-:root[data-theme='dark'] .panel-header,
-:root[data-theme='dark'] .panel-footer {
-  color: #e7eee9;
-  background: #14231f;
-}
-:root[data-theme='dark'] .panel-header,
-:root[data-theme='dark'] .panel-footer,
-:root[data-theme='dark'] .task-heading,
-:root[data-theme='dark'] .history-item {
-  border-color: #344640;
-}
-:root[data-theme='dark'] .selection-preview {
-  color: #d3ddd7;
-  background: #1c3029;
-}
-:root[data-theme='dark'] .markdown :not(pre) > code {
-  background: #294139;
-}
-:root[data-theme='dark'] .markdown a {
-  color: #80cdb8;
-}
-:root[data-theme='light'] .panel-shell {
-  color: #18342e;
-  background: #f7f3ea;
-}
-:root[data-theme='light'] .panel-header,
-:root[data-theme='light'] .panel-footer {
-  color: #18342e;
-  border-color: #d8d2c7;
-  background: #fbf8f1;
-}
-:root[data-theme='light'] .task-heading,
-:root[data-theme='light'] .history-item {
-  border-color: #d8d2c7;
-}
-:root[data-theme='light'] .selection-preview {
-  color: #41534c;
-  background: #eee9df;
-}
-:root[data-theme='light'] .markdown :not(pre) > code {
-  background: #e4dfd5;
-}
-:root[data-theme='light'] .markdown a {
-  color: #176854;
 }

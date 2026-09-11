@@ -94,6 +94,7 @@ test.describe('extension fixture', () => {
     await expect(toolbar).toHaveCSS('display', 'flex');
     await expect(toolbar).toHaveCSS('position', 'fixed');
     await expect(toolbar).toHaveCSS('width', '302px');
+    await expect(toolbar).toHaveCSS('background-color', 'rgb(79, 70, 229)');
   });
 
   test('runs the full inline stream when the browser exposes extension workers', async ({

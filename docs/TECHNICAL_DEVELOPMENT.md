@@ -10,7 +10,7 @@
 - `src/providers/`：Provider URL 校验、SSE 解析、OpenAI/Azure 请求适配。
 - `src/security/crypto.ts`：PBKDF2-SHA-256 与 AES-GCM。
 - `src/storage/`：Chrome Storage 和 IndexedDB 历史。`provider-secrets.ts` 负责显式保存服务时的密钥复用、模式切换与旧持久副本清理。
-- `src/options/`、`src/popup/`、`src/sidepanel/`：设置、快速状态和结果工作区。
+- `src/options/`、`src/popup/`、`src/sidepanel/`：设置、快速状态和结果工作区。共享 `src/styles/app.css` 语义色板，品牌色为靛蓝，页面和侧栏使用中性表面。
 
 ## 构建
 
