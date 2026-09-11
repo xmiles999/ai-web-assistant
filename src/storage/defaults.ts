@@ -9,7 +9,7 @@ export const DEFAULT_PROVIDER: ProviderProfile = {
   baseUrl: 'https://api.openai.com/v1',
   model: '',
   apiKeyRequired: true,
-  secretStorage: 'session',
+  secretStorage: 'local',
   temperature: 0.3,
   maxOutputTokens: 2048,
   timeoutMs: 60_000,

@@ -4,7 +4,7 @@
 
 AI 网页助手是一个 Manifest V3 Chrome 扩展：安装时请求普通 HTTP/HTTPS 网站权限，选择网页文字后自动显示工具栏，并通过自己配置的 OpenAI Chat Completions 兼容接口处理内容。扩展安装、更新或新增站点权限后，会尝试对已打开的普通网页补注入 Content Script，无需依赖下次导航。
 
-当前版本 `0.2.1` 是本地优先的开源发布基线：工具栏操作默认在选区附近显示流式结果弹窗，右键菜单和扩展入口继续使用 Side Panel。项目支持 OpenAI/Azure Provider 档案、自定义 Prompt、可选本地历史和口令加密的持久 API Key。未实现账号、云同步、官网、Agent 和自动发布。
+当前版本 `0.2.1` 是本地优先的开源发布基线：工具栏操作默认在选区附近显示流式结果弹窗，右键菜单和扩展入口继续使用 Side Panel。项目支持 OpenAI/Azure Provider 档案、自定义 Prompt、可选本地历史，以及本机记住、会话保存或口令加密的 API Key。未实现账号、云同步、官网、Agent 和自动发布。
 
 ## 兼容性与边界
 
@@ -43,6 +43,8 @@ PLAYWRIGHT_BROWSERS_PATH=/data/services/playwright npm run test:e2e
 
 首次运行 E2E 前可执行 `PLAYWRIGHT_BROWSERS_PATH=/data/services/playwright npx playwright install chromium`。E2E 使用本地 fixture 和 Mock 服务，不调用真实付费 AI 接口。无头 Chromium 不暴露扩展 Service Worker 时，打包后的 Content Script 场景仍会执行，完整扩展流式链路会明确标记为跳过；可在带图形环境的 headed Chromium 中补充验证。
 
+密钥持久化回归另用独立的持久浏览器配置实际重启 Chromium，验证保存的测试 Key 仍能调用 Mock 接口；该用例要求 Chromium 能加载扩展。Mock 服务默认使用 4173 端口，不复用其他服务，端口冲突时可设置 `E2E_PORT=4187`。
+
 ## 配置
 
 在扩展设置中新增服务：
@@ -55,7 +57,11 @@ PLAYWRIGHT_BROWSERS_PATH=/data/services/playwright npm run test:e2e
 
 “测试”按钮会发送一条要求回复 `OK` 的最小生成请求，可能产生少量费用，执行前会再次确认。
 
-API Key 默认只存当前浏览器会话。如果选择持久保存，使用用户口令通过 PBKDF2-SHA-256 派生 AES-GCM 密钥加密；口令不保存。Chrome 扩展不能提供操作系统级密钥链，详情见 [安全说明](docs/SECURITY.md)。
+新配置默认选择“记住 API Key”：填写一次后保存在本机扩展存储，重启浏览器、重新加载或更新同一扩展后无需再次输入。此方式不做口令加密，不同步，仅建议在自己的设备上使用；删除服务配置、卸载扩展或清除扩展数据会移除 Key。服务商撤销或使 Key 失效后仍需更换。
+
+旧配置保持原保存方式。想长期使用，请编辑服务，将“密钥保存方式”改为“记住 API Key”并保存；已有会话 Key 可以直接沿用，已锁定的加密 Key 需要先解锁或重新填写一次。Key 已保存时，编辑页留空表示不更换。
+
+仍可选择“仅当前浏览器会话”，或使用口令通过 PBKDF2-SHA-256 派生 AES-GCM 密钥加密持久保存；加密模式不保存口令，每个新浏览器会话需解锁。Chrome 扩展不能提供操作系统级密钥链，详情见 [安全说明](docs/SECURITY.md)。
 
 ## 文档
 

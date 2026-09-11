@@ -9,7 +9,7 @@
 - `src/content/content-script.tsx`：选区读取、Shadow DOM 工具栏和内联流式结果弹窗，不接触密钥。扩展 CSS 通过 Shadow Root 的构造样式表与 CSSOM 静态规则双路安装，严格 CSP 下仍能保留工具栏的关键布局。Content Script 启动入口位于样式常量初始化之后，防止 IIFE 构建产物在样式赋值前提前创建工具栏。
 - `src/providers/`：Provider URL 校验、SSE 解析、OpenAI/Azure 请求适配。
 - `src/security/crypto.ts`：PBKDF2-SHA-256 与 AES-GCM。
-- `src/storage/`：Chrome Storage 和 IndexedDB 历史。
+- `src/storage/`：Chrome Storage 和 IndexedDB 历史。`provider-secrets.ts` 负责显式保存服务时的密钥复用、模式切换与旧持久副本清理。
 - `src/options/`、`src/popup/`、`src/sidepanel/`：设置、快速状态和结果工作区。
 
 ## 构建
@@ -18,7 +18,7 @@ Vite 主配置构建 Popup、Options、Side Panel 和 module Service Worker；�
 
 ## 权限与数据流
 
-基础权限为 contextMenus、scripting、sidePanel、storage；安装时通过 `host_permissions` 请求全部 HTTP/HTTPS 网站。该权限同时允许静态注入工具栏、对已打开页面补注入和访问用户配置的 AI 接口。Service Worker 是唯一 AI 请求入口，API Key 位于扩展可信上下文的 session storage；Content Script 只发送结构化任务并通过 Port 接收流式文本。
+基础权限为 contextMenus、scripting、sidePanel、storage；安装时通过 `host_permissions` 请求全部 HTTP/HTTPS 网站。该权限同时允许静态注入工具栏、对已打开页面补注入和访问用户配置的 AI 接口。Service Worker 是唯一 AI 请求入口，API Key 按模式位于受 `TRUSTED_CONTEXTS` 限制的 local 或 session storage；Content Script 只发送结构化任务并通过 Port 接收流式文本。
 
 ## Provider 请求
 
@@ -31,3 +31,13 @@ Vitest 覆盖 Prompt 插值、URL 校验、加密解密、SSE 分块、并发菜
 ## 已知限制
 
 Chrome 受限页面禁止注入；全站权限会在安装时产生明确的高权限提示；工具栏拖动未纳入首期；内联结果使用安全纯文本而非富 Markdown；原生 Claude API 不在首期范围；请求所属网页弹窗或 Side Panel 被关闭时，当前请求会取消。
+
+## 密钥持久化
+
+新 Provider 默认 `secretStorage: local`，明文 `localSecret` 与 Provider 元数据一起存入 local storage；`getProviderSecret` 在每次 AI 请求、连接测试和获取模型时按模式取值，不依赖启动时恢复 session。旧 Provider 保留原模式。Options 显式保存通过 `saveProvider` 读取已保存配置和可用密钥；Key 留空时复用已有值。模式切换将元数据和持久密钥一起替换，移除非当前模式的 `localSecret` / `encryptedSecret`；会话模式仅在 session 保存明文。保存加密模式所需的口令不合格或密钥尚未解锁时保留原持久配置。
+
+local 与 session 均限制为可信扩展上下文，Content Script 不直接访问。Provider 密钥字段不进入任务消息和历史导出。“记住”模式不提供口令加密或 OS 密钥链保护。删除 Provider 同时清理 session 和 Provider 内的持久副本；不存在云端恢复。
+
+单元测试 `provider-secrets.test.ts` 覆盖模拟 session 清空后的持续使用、旧配置不自动迁移、显式迁移、留空编辑、替换、模式切换、加密失败、锁定和删除等边界；密钥模式模块纳入覆盖率门禁。浏览器回归使用本地虚构测试密钥，不使用真实 API Key 或付费接口。
+
+`remember-key.spec.ts` 使用独立持久化 Chromium 配置目录，实际关闭并重启浏览器，再验证连接测试、模型列表、选区生成和删除密钥。需要可加载扩展的 Chromium，不跳过此核心持久化回归。E2E 启动自己的 Mock 服务，不复用已有端口上的未知服务；默认端口 4173，冲突时用 `E2E_PORT=4187` 等指定空闲端口。测试结束后删除临时浏览器配置目录。

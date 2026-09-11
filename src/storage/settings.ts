@@ -9,6 +9,7 @@ const KEYS = {
 } as const;
 
 export async function initializeStorage(): Promise<void> {
+  await protectStorage();
   const values = await chrome.storage.local.get([KEYS.settings, KEYS.providers, KEYS.prompts]);
   const changes: Record<string, unknown> = {};
   if (!values[KEYS.settings]) changes[KEYS.settings] = DEFAULT_SETTINGS;
@@ -30,13 +31,27 @@ export async function saveSettings(settings: ExtensionSettings): Promise<void> {
 }
 
 export async function getProviders(): Promise<ProviderProfile[]> {
+  await protectStorage();
   const result = await chrome.storage.local.get(KEYS.providers);
   const profiles = result[KEYS.providers] as ProviderProfile[] | undefined;
   return profiles?.length ? profiles : [DEFAULT_PROVIDER];
 }
 
 export async function saveProviders(providers: ProviderProfile[]): Promise<void> {
+  await protectStorage();
   await chrome.storage.local.set({ [KEYS.providers]: providers });
+}
+
+export async function protectStorage(): Promise<void> {
+  await Promise.all([
+    chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' }),
+    chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' }),
+  ]);
+}
+
+export async function getProviderSecret(profile: ProviderProfile): Promise<string> {
+  if (profile.secretStorage === 'local') return profile.localSecret ?? '';
+  return getSessionSecret(profile.id);
 }
 
 export async function getPrompts(): Promise<PromptAction[]> {

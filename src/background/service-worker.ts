@@ -6,7 +6,7 @@ import { saveConversation, removeExpiredConversations } from '../storage/history
 import {
   getPrompts,
   getProviders,
-  getSessionSecret,
+  getProviderSecret,
   getSettings,
   initializeStorage,
   KEYS,
@@ -118,7 +118,7 @@ async function handleRuntimeMessage(message: RuntimeRequest, sender: chrome.runt
     case 'TEST_PROVIDER': {
       const profile = (await getProviders()).find((item) => item.id === message.providerId);
       if (!profile) throw new Error('服务配置不存在');
-      const apiKey = await getSessionSecret(profile.id);
+      const apiKey = await getProviderSecret(profile);
       let output = '';
       const controller = new AbortController();
       await streamChat(
@@ -196,7 +196,7 @@ async function runStream(task: PendingTask, port: chrome.runtime.Port): Promise<
       (item) => item.id === (action.providerId || settings.activeProviderId) && item.enabled,
     );
     if (!profile) throw new ProviderError('没有可用的 AI 服务配置。', 'invalid-config');
-    const apiKey = await getSessionSecret(profile.id);
+    const apiKey = await getProviderSecret(profile);
     const prompt = renderPrompt(action, task.selection, settings, task.userInput);
     post(port, {
       type: 'STREAM_START',

@@ -6,14 +6,15 @@ import {
   clearSessionSecret,
   getPrompts,
   getProviders,
-  getSessionSecret,
+  getProviderSecret,
   getSettings,
   savePrompts,
   saveProviders,
   saveSettings,
   setSessionSecret,
 } from '../storage/settings';
-import { decryptSecret, encryptSecret } from '../security/crypto';
+import { decryptSecret } from '../security/crypto';
+import { saveProvider } from '../storage/provider-secrets';
 import { findUnknownVariables } from '../prompts/template';
 import { listModels } from '../providers/openai';
 import { validateProvider } from '../providers/url';
@@ -89,9 +90,10 @@ function App() {
                 providers={providers}
                 onSettings={persistSettings}
                 onProviders={async (next) => {
-                  setProviders(next);
                   await saveProviders(next);
+                  setProviders(next);
                 }}
+                onSaved={setProviders}
                 setStatus={setStatus}
               />
             )}
@@ -122,12 +124,14 @@ function ProvidersSection({
   providers,
   onSettings,
   onProviders,
+  onSaved,
   setStatus,
 }: {
   settings: ExtensionSettings;
   providers: ProviderProfile[];
   onSettings: (settings: ExtensionSettings) => Promise<void>;
   onProviders: (providers: ProviderProfile[]) => Promise<void>;
+  onSaved: (providers: ProviderProfile[]) => void;
   setStatus: (status: string) => void;
 }) {
   const [editing, setEditing] = useState<ProviderProfile>();
@@ -135,6 +139,7 @@ function ProvidersSection({
   const [passphrase, setPassphrase] = useState('');
   const [unlockValues, setUnlockValues] = useState<Record<string, string>>({});
   const [models, setModels] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const newProvider = () => {
     const now = new Date().toISOString();
@@ -166,37 +171,21 @@ function ProvidersSection({
       setStatus(validation.errors.join('；'));
       return;
     }
-    if (
-      editing.apiKeyRequired &&
-      !apiKey &&
-      !editing.encryptedSecret &&
-      !(await getSessionSecret(editing.id))
-    ) {
-      setStatus('请填写 API Key');
-      return;
-    }
+    if (saving) return;
+    setSaving(true);
     try {
-      let profile = { ...editing, updatedAt: new Date().toISOString() };
-      if (apiKey) {
-        if (profile.secretStorage === 'encrypted') {
-          profile = { ...profile, encryptedSecret: await encryptSecret(apiKey, passphrase) };
-        } else {
-          delete profile.encryptedSecret;
-        }
-        await setSessionSecret(profile.id, apiKey);
-      }
-      const next = providers.some((item) => item.id === profile.id)
-        ? providers.map((item) => (item.id === profile.id ? profile : item))
-        : [...providers, profile];
-      await onProviders(next);
+      const next = await saveProvider(editing, apiKey, passphrase);
+      onSaved(next);
       if (!settings.activeProviderId || providers.length === 0)
-        await onSettings({ ...settings, activeProviderId: profile.id });
+        await onSettings({ ...settings, activeProviderId: editing.id });
       setEditing(undefined);
       setApiKey('');
       setPassphrase('');
       setStatus('服务配置已保存');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '保存失败');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -215,7 +204,8 @@ function ProvidersSection({
   const loadModels = async () => {
     if (!editing) return;
     try {
-      const key = apiKey || (await getSessionSecret(editing.id));
+      const saved = providers.find((item) => item.id === editing.id);
+      const key = apiKey || (saved ? await getProviderSecret(saved) : '');
       setModels(await listModels(editing, key));
       setStatus('模型列表已更新');
     } catch (error) {
@@ -276,6 +266,9 @@ function ProvidersSection({
                 <div className="inline">
                   <strong>{profile.name}</strong>
                   {settings.activeProviderId === profile.id && <span className="badge">当前</span>}
+                  {profile.secretStorage === 'local' && profile.localSecret && (
+                    <span className="badge">已记住 Key</span>
+                  )}
                 </div>
                 <div className="muted small">
                   {profile.model || '未填写模型'} · {profile.baseUrl}
@@ -404,14 +397,13 @@ function ProvidersSection({
               </datalist>
             </div>
             <div className="field">
-              <label htmlFor="api-key">
-                API Key {editing.encryptedSecret || apiKey ? '' : '（必填）'}
-              </label>
+              <label htmlFor="api-key">API Key</label>
               <input
                 id="api-key"
                 className="input"
                 type="password"
                 autoComplete="off"
+                placeholder="填写新 Key；已保存时留空表示不更换"
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
               />
@@ -429,11 +421,18 @@ function ProvidersSection({
                   })
                 }
               >
+                <option value="local">记住 API Key（重启浏览器也可使用）</option>
                 <option value="session">仅当前浏览器会话</option>
                 <option value="encrypted">使用口令加密后持久保存</option>
               </select>
+              {editing.secretStorage === 'local' && (
+                <p className="muted small">
+                  保存在本机扩展存储，不同步、不需要口令。未做口令加密，仅建议在自己的设备上使用；
+                  删除此服务配置即可移除已保存的 Key。
+                </p>
+              )}
             </div>
-            {editing.secretStorage === 'encrypted' && apiKey && (
+            {editing.secretStorage === 'encrypted' && (apiKey || !editing.encryptedSecret) && (
               <div className="field">
                 <label htmlFor="passphrase">解锁口令（至少 10 个字符）</label>
                 <input
@@ -501,8 +500,8 @@ function ProvidersSection({
             </label>
           </div>
           <div className="actions">
-            <button className="button primary" onClick={() => void save()}>
-              保存
+            <button className="button primary" disabled={saving} onClick={() => void save()}>
+              {saving ? '保存中…' : '保存'}
             </button>
             <button className="button" onClick={() => void loadModels()}>
               获取模型
@@ -872,7 +871,8 @@ function AboutSection() {
       <p className="muted">Manifest V3 · 数据隐私优先 · MIT License</p>
       <div className="notice">
         本扩展不会运营中转服务器。你选择的文本只会发送到当前配置的 AI 服务。普通 Chrome
-        扩展无法提供操作系统级秘密存储；持久密钥依赖用户口令加密。
+        扩展无法提供操作系统级秘密存储；“记住 API Key”在本机保存未加密密钥，
+        也可选择仅会话保存或口令加密保存。
       </div>
       <button
         className="button"

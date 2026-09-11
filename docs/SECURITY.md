@@ -2,7 +2,11 @@
 
 ## 密钥
 
-默认 API Key 仅存在 `chrome.storage.session`。持久模式使用随机 salt、随机 IV、PBKDF2-SHA-256 和 AES-GCM；用户口令不持久化。普通 Chrome 扩展不能承诺操作系统级安全存储，已被控制的浏览器配置目录仍可被攻击者读取。
+新配置默认采用“记住 API Key”：明文 Key 随 Provider 的 `localSecret` 字段保存在 `chrome.storage.local`，无需口令，浏览器重启后可继续使用。此方式以便利性换取较弱的静态数据保护，仅建议用于自己的设备；不应把它描述为加密存储。访问本机浏览器配置目录的攻击者可能读取密钥。
+
+用户仍可选择仅会话保存（`chrome.storage.session`），或口令加密保存（随机 salt、随机 IV、PBKDF2-SHA-256 和 AES-GCM）；口令不持久化，加密模式每个新浏览器会话需要解锁。旧配置不会自动转为明文持久保存，必须由用户编辑并保存。切换模式时移除旧的持久密钥表示；删除服务配置时移除对应密钥。卸载扩展或清除数据也会丢失 Key。
+
+读取 Provider、初始化或写入 Provider 前，将 local 和 session storage 的访问级别限制为 `TRUSTED_CONTEXTS`；失败时不继续保存。网页 Content Script 不可直接读取这些存储。密钥不写入历史导出、不通过任务消息返回网页，仅用于用户配置的 AI 接口认证。普通 Chrome 扩展不能承诺操作系统级安全存储。
 
 ## 漏洞报告
 

@@ -1,5 +1,5 @@
 export type ProviderProtocol = 'openai-compatible' | 'azure-openai';
-export type SecretStorageMode = 'session' | 'encrypted';
+export type SecretStorageMode = 'local' | 'session' | 'encrypted';
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type ActionId = string;
 
@@ -21,6 +21,7 @@ export interface ProviderProfile {
   model: string;
   apiKeyRequired: boolean;
   secretStorage: SecretStorageMode;
+  localSecret?: string;
   encryptedSecret?: EncryptedSecret;
   azureDeployment?: string;
   apiVersion?: string;

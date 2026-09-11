@@ -12,6 +12,7 @@ export default defineConfig({
       include: [
         'src/prompts/**/*.ts',
         'src/security/**/*.ts',
+        'src/storage/provider-secrets.ts',
         'src/providers/sse.ts',
         'src/providers/url.ts',
         'src/background/content-injection.ts',

@@ -13,6 +13,14 @@ const server = createServer((request, response) => {
     response.end();
     return;
   }
+  if (request.url?.startsWith('/remember/')) {
+    if (request.headers.authorization !== 'Bearer e2e-not-a-real-key') {
+      response.writeHead(401, { 'access-control-allow-origin': '*' });
+      response.end('missing test credential');
+      return;
+    }
+    request.url = request.url.slice('/remember'.length);
+  }
   if (request.url === '/v1/chat/completions' && request.method === 'POST') {
     response.writeHead(200, {
       'content-type': 'text/event-stream; charset=utf-8',
@@ -47,5 +55,5 @@ const server = createServer((request, response) => {
   response.writeHead(404);
   response.end('not found');
 });
-server.listen(4173, '127.0.0.1');
+server.listen(Number(process.env.E2E_PORT || 4173), '127.0.0.1');
 process.on('SIGTERM', () => server.close(() => process.exit(0)));

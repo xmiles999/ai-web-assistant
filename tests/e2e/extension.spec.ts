@@ -99,6 +99,7 @@ test.describe('extension fixture', () => {
   test('runs the full inline stream when the browser exposes extension workers', async ({
     context,
     page,
+    baseURL,
   }) => {
     const serviceWorker = context.serviceWorkers()[0];
     test.skip(
@@ -109,7 +110,7 @@ test.describe('extension fixture', () => {
     const extensionId = new URL(serviceWorker.url()).hostname;
     const control = await context.newPage();
     await control.goto(`chrome-extension://${extensionId}/popup.html`);
-    await control.evaluate(async () => {
+    await control.evaluate(async (endpoint) => {
       const now = new Date().toISOString();
       const stored = await chrome.storage.local.get(['settings']);
       const rawSettings: unknown = stored.settings;
@@ -121,7 +122,7 @@ test.describe('extension fixture', () => {
             id: 'e2e-provider',
             name: 'E2E Mock',
             protocol: 'openai-compatible',
-            baseUrl: 'http://127.0.0.1:4173/v1',
+            baseUrl: endpoint,
             model: 'e2e-model',
             apiKeyRequired: false,
             secretStorage: 'session',
@@ -134,7 +135,7 @@ test.describe('extension fixture', () => {
           },
         ],
       });
-    });
+    }, `${baseURL}/v1`);
     await page.goto('/fixture.html');
     await page.locator('#text').selectText();
     const extension = page.locator('[data-ai-web-assistant="root"]');
